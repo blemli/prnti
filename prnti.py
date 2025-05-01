@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 
-from epsontm import  print_image, print_text
+from epsontm import print_image, print_text
 from mailbox import wait_for_mail, extract_article_url
-import requests,os
+from browser import visit_and_print
+import requests, os
 from icecream import ic
 from dotenv import load_dotenv
 
@@ -16,15 +17,35 @@ if __name__=="__main__":
     password=os.getenv("PRNTI_MAIL_PASS")
     username=os.getenv("PRNTI_MAIL_USER")
     ic(host,sender,password,username)
+    
+    # Wait for an email and extract the article URL
+    print("Waiting for email...")
     msg=wait_for_mail(sender,host,username,password)
+    
+    # Print the email subject
+    print("Printing email subject...")
     print_text(msg.subject)
+    
+    # Extract the article URL
     article_url=extract_article_url(msg)
     print("Article URL:", article_url)
-    # Download the article
-    response = requests.get(article_url)
-    if response.status_code == 200:
-        with open("article.html", "wb") as f:
-            f.write(response.content)
-        print("Article downloaded successfully.")
+    
+    if article_url:
+        # Visit the URL in mobile mode, take a screenshot, and print it
+        print("Visiting article URL and printing screenshot...")
+        screenshot_file = visit_and_print(
+            url=article_url,
+            output_file="article_screenshot.png",
+            print_output=True,
+            mobile_mode=True,
+            width=384,  # Width suitable for thermal printer
+            height=800,
+            wait_time=8  # Wait a bit longer to ensure page loads fully
+        )
+        
+        if screenshot_file:
+            print(f"Screenshot saved to {screenshot_file} and printed successfully")
+        else:
+            print("Failed to take or print screenshot")
     else:
-        print("Failed to download article.")
+        print("No article URL found in the email")
