@@ -7,9 +7,22 @@ import platform
 import subprocess
 from PIL import Image
 
+from epsontm import print_image
+from playwright.sync_api import sync_playwright
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+from pdf2image import convert_from_path
+from PIL import Image
+from PIL import Image
+
+
 # Import epsontm only when needed to avoid errors if not printing
 def get_print_image():
-    from epsontm import print_image
     return print_image
 
 def visit_and_print(url, output_file="screenshot.png", print_output=True, mobile_mode=True, 
@@ -95,7 +108,6 @@ def _is_raspberry_pi():
 def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page):
     """Use Playwright to visit the URL and take a screenshot"""
     try:
-        from playwright.sync_api import sync_playwright
         
         print("Using Playwright for browser automation")
         with sync_playwright() as p:
@@ -188,11 +200,6 @@ def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, h
 
 def _visit_with_selenium(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page):
     """Use Selenium to visit the URL and take a screenshot"""
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.support.ui import WebDriverWait
-    from selenium.webdriver.support import expected_conditions as EC
     
     print("Using Selenium for browser automation")
     
@@ -231,8 +238,6 @@ def _visit_with_selenium(url, output_file, print_output, mobile_mode, width, hei
             driver = webdriver.Chrome(options=chrome_options)
         else:
             # Other platforms
-            from selenium.webdriver.chrome.service import Service
-            from webdriver_manager.chrome import ChromeDriverManager
             
             service = Service(ChromeDriverManager().install())
             driver = webdriver.Chrome(service=service, options=chrome_options)
@@ -366,7 +371,6 @@ def _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, 
     # Convert PDF to PNG
     if output_file.endswith('.png'):
         try:
-            from pdf2image import convert_from_path
             print(f"Converting PDF to PNG: {pdf_file} -> {output_file}")
             
             # On Raspberry Pi, we might need to use lower DPI for memory constraints
@@ -395,7 +399,6 @@ def _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, 
 
 def _stitch_screenshots(screenshot_files, output_file, target_width=None):
     """Stitch multiple screenshots together vertically"""
-    from PIL import Image
     
     print(f"Stitching {len(screenshot_files)} screenshots together...")
     
@@ -438,7 +441,6 @@ def _stitch_screenshots(screenshot_files, output_file, target_width=None):
 def _resize_image_if_needed(image_path, target_width):
     """Resize an image to the target width while maintaining aspect ratio"""
     try:
-        from PIL import Image
         
         # Check if the file exists and is an image
         if not os.path.exists(image_path):

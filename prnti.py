@@ -17,19 +17,12 @@ if __name__=="__main__":
     password=os.getenv("PRNTI_MAIL_PASS")
     username=os.getenv("PRNTI_MAIL_USER")
     ic(host,sender,password,username)
-    
     # Wait for an email and extract the article URL
     print("Waiting for email...")
     msg=wait_for_mail(sender,host,username,password)
-    
-    # Print the email subject
-    print("Printing email subject...")
-    print_text(msg.subject)
-    
     # Extract the article URL
     article_url=extract_article_url(msg)
     print("Article URL:", article_url)
-    
     if article_url:
         # Visit the URL in mobile mode, take a screenshot of the full page, and print it
         print("Visiting article URL and printing screenshot...")
@@ -43,7 +36,6 @@ if __name__=="__main__":
             wait_time=10,  # Wait longer to ensure page loads fully
             full_page=True  # Capture the full page by scrolling
         )
-        
         if screenshot_file:
             print(f"Screenshot saved to {screenshot_file} and printed successfully")
         else:
