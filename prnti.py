@@ -2,7 +2,7 @@
 
 from epsontm import print_image, print_text
 from mailbox import wait_for_mail, extract_article_url
-from browser import visit_and_print
+from browser4 import full_page_screenshot
 import requests, os
 from icecream import ic
 from dotenv import load_dotenv
@@ -26,16 +26,7 @@ if __name__=="__main__":
     if article_url:
         # Visit the URL in mobile mode, take a screenshot of the full page, and print it
         print("Visiting article URL and printing screenshot...")
-        screenshot_file = visit_and_print(
-            url=article_url,
-            output_file="article_screenshot.png",
-            print_output=True,
-            mobile_mode=True,
-            width=384,  # Width suitable for thermal printer
-            height=800,
-            wait_time=10,  # Wait longer to ensure page loads fully
-            full_page=True  # Capture the full page by scrolling
-        )
+        screenshot_file=full_page_screenshot(article_url)
         if screenshot_file:
             print(f"Screenshot saved to {screenshot_file} and printed successfully")
         else:
