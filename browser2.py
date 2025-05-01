@@ -1,24 +1,20 @@
 #!/usr/bin/env python
-
-#!/usr/bin/env python3
-# pip install selenium pillow webdriver-manager
-
 from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from webdriver_manager.chrome import ChromeDriverManager
+from webdriver_manager.core.utils import ChromeType      # NEU
 from PIL import Image
 import base64, io
 
-
-URL = "https://example.com"               # anpassen
 options = webdriver.ChromeOptions()
-options.add_argument("--headless=new")    # aktuelles Headless-Flag
-options.add_argument("--disable-gpu")
+options.add_argument("--headless=new")
 options.add_experimental_option("mobileEmulation",
-                                {"deviceName": "iPhone 12 Pro"})  # Mobile-Mode
+                                {"deviceName": "iPhone 12 Pro"})
+options.binary_location = "/usr/bin/chromium-browser"    # NEU
 
-driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()),
-                          options=options)
+service = Service(ChromeDriverManager(
+                  chrome_type=ChromeType.CHROMIUM).install())  # NEU
+driver = webdriver.Chrome(service=service, options=options)
 try:
     driver.get(URL)
 
