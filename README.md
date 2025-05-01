@@ -16,7 +16,7 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 sudo apt install python3-dev libcups2-dev -y
-sudo apt install chromium chromium-driver -y  # auf Bookworm/Bullseye
+#sudo apt install chromium chromium-driver -y  # auf Bookworm/Bullseye
 
 python3 -m venv .venv
 source .venv/bin/activate

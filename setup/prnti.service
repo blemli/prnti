@@ -1,0 +1,14 @@
+[Unit]
+Description=prnti for wnti
+After=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/opt/%H
+ExecStart=/usr/bin/sudo /opt/%H/.venv/bin/python3 -u /opt/%H/%H.py
+Restart=on-failure
+RestartSec=1
+
+[Install]
+WantedBy=multi-user.target
