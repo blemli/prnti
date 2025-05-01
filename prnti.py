@@ -29,6 +29,8 @@ if __name__=="__main__":
         screenshot_file=full_page_screenshot(article_url)
         if screenshot_file:
             print(f"Screenshot saved to {screenshot_file} and printed successfully")
+            print_image(screenshot_file)
+            os.remove(screenshot_file)
         else:
             print("Failed to take or print screenshot")
     else:
