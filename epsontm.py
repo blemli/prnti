@@ -3,8 +3,8 @@
 from escpos.printer import Usb
 
 
-VENDOR_ID = "0x04b8"
-PRODUCT_ID = "0x0202"
+VENDOR_ID = 0x04b8
+PRODUCT_ID = 0x0202
 PROFILE= "TM-T88IV"
 
 allowed_images = ['.jpg', '.gif', '.png', '.bmp']
