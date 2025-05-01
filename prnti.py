@@ -31,7 +31,7 @@ if __name__=="__main__":
     print("Article URL:", article_url)
     
     if article_url:
-        # Visit the URL in mobile mode, take a screenshot, and print it
+        # Visit the URL in mobile mode, take a screenshot of the full page, and print it
         print("Visiting article URL and printing screenshot...")
         screenshot_file = visit_and_print(
             url=article_url,
@@ -40,7 +40,8 @@ if __name__=="__main__":
             mobile_mode=True,
             width=384,  # Width suitable for thermal printer
             height=800,
-            wait_time=8  # Wait a bit longer to ensure page loads fully
+            wait_time=10,  # Wait longer to ensure page loads fully
+            full_page=True  # Capture the full page by scrolling
         )
         
         if screenshot_file:
