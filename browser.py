@@ -7,22 +7,9 @@ import platform
 import subprocess
 from PIL import Image
 
-from epsontm import print_image
-from playwright.sync_api import sync_playwright
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
-from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-from selenium.webdriver.chrome.service import Service
-from webdriver_manager.chrome import ChromeDriverManager
-from pdf2image import convert_from_path
-from PIL import Image
-from PIL import Image
-
-
 # Import epsontm only when needed to avoid errors if not printing
 def get_print_image():
+    from epsontm import print_image
     return print_image
 
 def visit_and_print(url, output_file="screenshot.png", print_output=True, mobile_mode=True, 
@@ -52,17 +39,17 @@ def visit_and_print(url, output_file="screenshot.png", print_output=True, mobile
     
     # Determine which approach to use based on available libraries and platform
     if is_raspi:
-        # On Raspberry Pi, prefer lighter-weight options
+        # On Raspberry Pi, try Selenium first (more reliable on Raspberry Pi)
         try:
-            return _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page)
+            return _visit_with_selenium(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page)
         except Exception as e:
-            print(f"wkhtmltopdf failed: {str(e)}")
+            print(f"Selenium failed: {str(e)}")
             try:
                 return _visit_with_playwright(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page)
-            except ImportError:
-                print("Playwright not available, trying Selenium...")
+            except Exception as e:
+                print(f"Playwright failed: {str(e)}")
                 try:
-                    return _visit_with_selenium(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page)
+                    return _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page)
                 except Exception as e:
                     print(f"All methods failed: {str(e)}")
                     return None
@@ -87,17 +74,23 @@ def _is_raspberry_pi():
     """Check if running on a Raspberry Pi"""
     # Check for Raspberry Pi-specific files
     if os.path.exists('/proc/device-tree/model'):
-        with open('/proc/device-tree/model') as f:
-            model = f.read()
-            if 'Raspberry Pi' in model:
-                return True
+        try:
+            with open('/proc/device-tree/model') as f:
+                model = f.read()
+                if 'Raspberry Pi' in model:
+                    return True
+        except:
+            pass
     
     # Check CPU info
     if os.path.exists('/proc/cpuinfo'):
-        with open('/proc/cpuinfo') as f:
-            cpuinfo = f.read()
-            if 'BCM2708' in cpuinfo or 'BCM2709' in cpuinfo or 'BCM2711' in cpuinfo or 'BCM2835' in cpuinfo:
-                return True
+        try:
+            with open('/proc/cpuinfo') as f:
+                cpuinfo = f.read()
+                if 'BCM2708' in cpuinfo or 'BCM2709' in cpuinfo or 'BCM2711' in cpuinfo or 'BCM2835' in cpuinfo:
+                    return True
+        except:
+            pass
     
     # Check platform
     if platform.machine().startswith('arm') and platform.system() == 'Linux':
@@ -108,6 +101,7 @@ def _is_raspberry_pi():
 def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page):
     """Use Playwright to visit the URL and take a screenshot"""
     try:
+        from playwright.sync_api import sync_playwright
         
         print("Using Playwright for browser automation")
         with sync_playwright() as p:
@@ -128,11 +122,22 @@ def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, h
             
             browser = browser_type.launch(headless=True, args=browser_args)
             
+            # Create context with appropriate viewport settings
             if mobile_mode:
                 print("Using mobile emulation mode")
-                # Mobile device settings
-                device = browser_type.devices["Pixel 5"]
-                context = browser.new_context(**device)
+                # Check if devices attribute exists (may not be available in older versions)
+                if hasattr(browser_type, 'devices') and "Pixel 5" in browser_type.devices:
+                    # Use predefined device
+                    device = browser_type.devices["Pixel 5"]
+                    context = browser.new_context(**device)
+                else:
+                    # Fallback for older versions or when devices not available
+                    print("Playwright devices not available, using custom mobile settings")
+                    context = browser.new_context(
+                        viewport={"width": width, "height": height},
+                        device_scale_factor=2.0,
+                        user_agent="Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+                    )
             else:
                 # Desktop settings
                 context = browser.new_context(viewport={"width": width, "height": height})
@@ -149,35 +154,44 @@ def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, h
             # Ensure content is fully loaded by scrolling
             if full_page:
                 print("Scrolling through page to ensure all content is loaded...")
-                # Get page height
-                page_height = page.evaluate("""() => {
-                    return Math.max(
-                        document.body.scrollHeight,
-                        document.documentElement.scrollHeight,
-                        document.body.offsetHeight,
-                        document.documentElement.offsetHeight
-                    );
-                }""")
-                
-                # Scroll through the page to ensure all content is loaded
-                viewport_height = page.viewport_size['height']
-                for scroll_pos in range(0, page_height, viewport_height // 2):  # Overlap by 50%
-                    page.evaluate(f"window.scrollTo(0, {scroll_pos})")
-                    page.wait_for_timeout(500)  # Wait for any lazy-loaded content
-                
-                # Scroll back to top
-                page.evaluate("window.scrollTo(0, 0)")
-                page.wait_for_timeout(500)
+                try:
+                    # Get page height
+                    page_height = page.evaluate("""() => {
+                        return Math.max(
+                            document.body.scrollHeight,
+                            document.documentElement.scrollHeight,
+                            document.body.offsetHeight,
+                            document.documentElement.offsetHeight
+                        );
+                    }""")
+                    
+                    # Scroll through the page to ensure all content is loaded
+                    viewport_height = page.viewport_size['height']
+                    for scroll_pos in range(0, page_height, viewport_height // 2):  # Overlap by 50%
+                        page.evaluate(f"window.scrollTo(0, {scroll_pos})")
+                        page.wait_for_timeout(500)  # Wait for any lazy-loaded content
+                    
+                    # Scroll back to top
+                    page.evaluate("window.scrollTo(0, 0)")
+                    page.wait_for_timeout(500)
+                except Exception as e:
+                    print(f"Error during scrolling: {str(e)}, continuing anyway")
             
             # Take a screenshot
             print(f"Taking screenshot and saving to {output_file}...")
             
-            if full_page:
-                print("Capturing full page...")
-                # Playwright has built-in full page screenshot capability
-                page.screenshot(path=output_file, full_page=True)
-            else:
-                # Just capture the viewport
+            try:
+                if full_page:
+                    print("Capturing full page...")
+                    # Playwright has built-in full page screenshot capability
+                    page.screenshot(path=output_file, full_page=True)
+                else:
+                    # Just capture the viewport
+                    page.screenshot(path=output_file)
+            except Exception as e:
+                print(f"Error taking screenshot with full_page={full_page}: {str(e)}")
+                print("Trying alternative screenshot method...")
+                # Fallback to viewport screenshot
                 page.screenshot(path=output_file)
             
             # Close the browser
@@ -195,52 +209,86 @@ def _visit_with_playwright(url, output_file, print_output, mobile_mode, width, h
                 print("Screenshot printed successfully")
             
             return output_file
-    except ImportError:
+    except ImportError as e:
+        print(f"Playwright import error: {str(e)}")
         raise
 
 def _visit_with_selenium(url, output_file, print_output, mobile_mode, width, height, wait_time, full_page):
     """Use Selenium to visit the URL and take a screenshot"""
-    
-    print("Using Selenium for browser automation")
-    
-    # Set up Chrome options
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    
-    # Additional options for Raspberry Pi
-    if _is_raspberry_pi():
-        chrome_options.add_argument("--disable-gpu")
-        chrome_options.add_argument("--disable-software-rasterizer")
-        chrome_options.add_argument("--single-process")
-    
-    if mobile_mode:
-        print("Using mobile emulation mode")
-        # Set up mobile emulation
-        mobile_emulation = {
-            "deviceMetrics": {"width": width, "height": height, "pixelRatio": 2.0},
-            "userAgent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
-        }
-        chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
-    else:
-        # Set window size for desktop mode
-        chrome_options.add_argument(f"--window-size={width},{height}")
-    
     try:
+        from selenium import webdriver
+        from selenium.webdriver.chrome.options import Options
+        
+        print("Using Selenium for browser automation")
+        
+        # Set up Chrome options
+        chrome_options = Options()
+        chrome_options.add_argument("--headless")
+        chrome_options.add_argument("--no-sandbox")
+        chrome_options.add_argument("--disable-dev-shm-usage")
+        
+        # Additional options for Raspberry Pi
+        if _is_raspberry_pi():
+            chrome_options.add_argument("--disable-gpu")
+            chrome_options.add_argument("--disable-software-rasterizer")
+            chrome_options.add_argument("--single-process")
+        
+        if mobile_mode:
+            print("Using mobile emulation mode")
+            # Set up mobile emulation
+            mobile_emulation = {
+                "deviceMetrics": {"width": width, "height": height, "pixelRatio": 2.0},
+                "userAgent": "Mozilla/5.0 (Linux; Android 10; SM-G973F) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.120 Mobile Safari/537.36"
+            }
+            chrome_options.add_experimental_option("mobileEmulation", mobile_emulation)
+        else:
+            # Set window size for desktop mode
+            chrome_options.add_argument(f"--window-size={width},{height}")
+        
         # Initialize the browser - handle different platforms
         system = platform.system()
         is_raspi = _is_raspberry_pi()
         
-        if is_raspi or (system == "Darwin" and platform.processor() == "arm"):
-            # Raspberry Pi or macOS on Apple Silicon
-            print(f"Detected special platform: {'Raspberry Pi' if is_raspi else 'macOS ARM'}")
-            driver = webdriver.Chrome(options=chrome_options)
-        else:
-            # Other platforms
-            
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
+        # Try different ways to initialize Chrome
+        driver = None
+        exceptions = []
+        
+        # Method 1: Direct initialization (works on Raspberry Pi and macOS ARM)
+        if driver is None:
+            try:
+                print("Trying direct Chrome initialization...")
+                driver = webdriver.Chrome(options=chrome_options)
+            except Exception as e:
+                exceptions.append(f"Direct initialization failed: {str(e)}")
+        
+        # Method 2: Using webdriver_manager (works on most platforms)
+        if driver is None:
+            try:
+                print("Trying webdriver_manager initialization...")
+                from selenium.webdriver.chrome.service import Service
+                from webdriver_manager.chrome import ChromeDriverManager
+                
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except Exception as e:
+                exceptions.append(f"webdriver_manager initialization failed: {str(e)}")
+        
+        # Method 3: Using Firefox as fallback
+        if driver is None:
+            try:
+                print("Trying Firefox as fallback...")
+                from selenium.webdriver.firefox.options import Options as FirefoxOptions
+                
+                firefox_options = FirefoxOptions()
+                firefox_options.add_argument("--headless")
+                
+                driver = webdriver.Firefox(options=firefox_options)
+            except Exception as e:
+                exceptions.append(f"Firefox fallback failed: {str(e)}")
+        
+        # If all methods failed, raise an exception
+        if driver is None:
+            raise Exception(f"Failed to initialize any browser: {'; '.join(exceptions)}")
         
         # Navigate to the URL
         print(f"Navigating to {url}...")
@@ -253,55 +301,60 @@ def _visit_with_selenium(url, output_file, print_output, mobile_mode, width, hei
         if full_page:
             print("Capturing full page (scrolling if needed)...")
             
-            # Get page dimensions
-            total_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight, document.body.clientHeight, document.documentElement.clientHeight);")
-            viewport_height = driver.execute_script("return window.innerHeight")
-            viewport_width = driver.execute_script("return window.innerWidth")
-            
-            print(f"Page dimensions: {viewport_width}x{total_height} (viewport height: {viewport_height})")
-            
-            if total_height > viewport_height:
-                # First scroll through the entire page to ensure all content is loaded
-                print("Pre-scrolling to load all content...")
-                for pos in range(0, total_height, viewport_height // 2):  # Overlap by 50%
-                    driver.execute_script(f"window.scrollTo(0, {pos});")
-                    time.sleep(0.5)  # Wait for any lazy-loaded content
-                
-                # Scroll back to top
-                driver.execute_script("window.scrollTo(0, 0);")
-                time.sleep(0.5)
-                
-                # Re-measure height after scrolling (in case of dynamic content)
+            try:
+                # Get page dimensions
                 total_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight, document.body.clientHeight, document.documentElement.clientHeight);")
-                print(f"Updated page height after scrolling: {total_height}")
+                viewport_height = driver.execute_script("return window.innerHeight")
+                viewport_width = driver.execute_script("return window.innerWidth")
                 
-                # Need to scroll and stitch
-                temp_screenshots = []
+                print(f"Page dimensions: {viewport_width}x{total_height} (viewport height: {viewport_height})")
                 
-                # Take screenshots at different scroll positions
-                scroll_positions = list(range(0, total_height, viewport_height - 50))  # 50px overlap
-                if scroll_positions[-1] < total_height:
-                    scroll_positions.append(total_height - viewport_height)  # Add the bottom of the page
-                
-                print(f"Taking {len(scroll_positions)} screenshots at different scroll positions...")
-                for i, pos in enumerate(scroll_positions):
-                    driver.execute_script(f"window.scrollTo(0, {pos});")
-                    time.sleep(0.5)  # Wait for scroll to complete
+                if total_height > viewport_height:
+                    # First scroll through the entire page to ensure all content is loaded
+                    print("Pre-scrolling to load all content...")
+                    for pos in range(0, total_height, viewport_height // 2):  # Overlap by 50%
+                        driver.execute_script(f"window.scrollTo(0, {pos});")
+                        time.sleep(0.5)  # Wait for any lazy-loaded content
                     
-                    temp_file = f"temp_screenshot_{i}.png"
-                    driver.save_screenshot(temp_file)
-                    temp_screenshots.append(temp_file)
-                    print(f"Took screenshot at scroll position {pos}/{total_height}")
-                
-                # Stitch screenshots together
-                _stitch_screenshots(temp_screenshots, output_file, width)
-                
-                # Clean up temp files
-                for temp_file in temp_screenshots:
-                    os.remove(temp_file)
-            else:
-                # Page fits in viewport, just take a single screenshot
-                print("Page fits in viewport, taking single screenshot")
+                    # Scroll back to top
+                    driver.execute_script("window.scrollTo(0, 0);")
+                    time.sleep(0.5)
+                    
+                    # Re-measure height after scrolling (in case of dynamic content)
+                    total_height = driver.execute_script("return Math.max(document.body.scrollHeight, document.documentElement.scrollHeight, document.body.offsetHeight, document.documentElement.offsetHeight, document.body.clientHeight, document.documentElement.clientHeight);")
+                    print(f"Updated page height after scrolling: {total_height}")
+                    
+                    # Need to scroll and stitch
+                    temp_screenshots = []
+                    
+                    # Take screenshots at different scroll positions
+                    scroll_positions = list(range(0, total_height, viewport_height - 50))  # 50px overlap
+                    if scroll_positions[-1] < total_height:
+                        scroll_positions.append(total_height - viewport_height)  # Add the bottom of the page
+                    
+                    print(f"Taking {len(scroll_positions)} screenshots at different scroll positions...")
+                    for i, pos in enumerate(scroll_positions):
+                        driver.execute_script(f"window.scrollTo(0, {pos});")
+                        time.sleep(0.5)  # Wait for scroll to complete
+                        
+                        temp_file = f"temp_screenshot_{i}.png"
+                        driver.save_screenshot(temp_file)
+                        temp_screenshots.append(temp_file)
+                        print(f"Took screenshot at scroll position {pos}/{total_height}")
+                    
+                    # Stitch screenshots together
+                    _stitch_screenshots(temp_screenshots, output_file, width)
+                    
+                    # Clean up temp files
+                    for temp_file in temp_screenshots:
+                        os.remove(temp_file)
+                else:
+                    # Page fits in viewport, just take a single screenshot
+                    print("Page fits in viewport, taking single screenshot")
+                    driver.save_screenshot(output_file)
+            except Exception as e:
+                print(f"Error during full page capture: {str(e)}")
+                print("Falling back to viewport screenshot")
                 driver.save_screenshot(output_file)
         else:
             # Just capture the current viewport
@@ -322,7 +375,6 @@ def _visit_with_selenium(url, output_file, print_output, mobile_mode, width, hei
             print("Screenshot printed successfully")
         
         return output_file
-        
     except Exception as e:
         print(f"Selenium error: {str(e)}")
         raise
@@ -356,7 +408,6 @@ def _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, 
     cmd.extend(['--javascript-delay', str(wait_time * 1000)])  # Convert to milliseconds
     cmd.extend(['--no-stop-slow-scripts'])
     cmd.extend(['--enable-javascript'])
-    cmd.extend(['--enable-plugins'])
     
     # Quality options
     cmd.extend(['--image-quality', '100'])
@@ -366,11 +417,21 @@ def _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, 
     
     # Run the command
     print(f"Running command: {' '.join(cmd)}")
-    subprocess.run(cmd, check=True)
+    try:
+        subprocess.run(cmd, check=True)
+    except FileNotFoundError:
+        # Try with full path on Raspberry Pi
+        if _is_raspberry_pi():
+            print("wkhtmltopdf command not found, trying with full path...")
+            cmd[0] = '/usr/bin/wkhtmltopdf'
+            subprocess.run(cmd, check=True)
+        else:
+            raise
     
     # Convert PDF to PNG
     if output_file.endswith('.png'):
         try:
+            from pdf2image import convert_from_path
             print(f"Converting PDF to PNG: {pdf_file} -> {output_file}")
             
             # On Raspberry Pi, we might need to use lower DPI for memory constraints
@@ -399,6 +460,7 @@ def _visit_with_wkhtmltopdf(url, output_file, print_output, mobile_mode, width, 
 
 def _stitch_screenshots(screenshot_files, output_file, target_width=None):
     """Stitch multiple screenshots together vertically"""
+    from PIL import Image
     
     print(f"Stitching {len(screenshot_files)} screenshots together...")
     
@@ -441,6 +503,7 @@ def _stitch_screenshots(screenshot_files, output_file, target_width=None):
 def _resize_image_if_needed(image_path, target_width):
     """Resize an image to the target width while maintaining aspect ratio"""
     try:
+        from PIL import Image
         
         # Check if the file exists and is an image
         if not os.path.exists(image_path):
