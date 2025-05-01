@@ -6,8 +6,6 @@
 
 
 
-
-
 ```bash
 lsusb | grep Epson
 sudo touch /etc/udev/rules.d/99-escpos.rules
