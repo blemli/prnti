@@ -1,11 +1,30 @@
 #!/usr/bin/env python
 
-from escpos.printer import Usb
+from epsontm import  print_image
+
+from imap_tools import MailBox, AND
 
 
-""" Seiko Epson Corp. Receipt Printer (EPSON TM-T88IV) """
-p = Usb(0x04b8, 0x0202, 0, profile="TM-T88IV")
-p.text("Hello World\n")
-p.image("logo.gif")
-p.barcode('4006381333931', 'EAN13', 64, 2, '', '')
-p.cut()
+def wait_for_mail(sender: str, host: str, username: str, password: str, folder: str = 'INBOX'):
+    """
+    Block until a new unseen email arrives from the specified sender.
+    Returns the first MailMessage instance from that sender.
+    """
+    with MailBox(host).login(username, password, initial_folder=folder) as mailbox:
+        # Start IDLE mode
+        mailbox.idle.start()
+        try:
+            while True:
+                # Poll for server responses (new messages, etc.)
+                responses = mailbox.idle.poll(timeout=30)
+                if responses:
+                    # Fetch the first unseen message from the sender
+                    msgs = list(mailbox.fetch(
+                        AND(from_=sender, seen=False),
+                        limit=1
+                    ))
+                    if msgs:
+                        return msgs[0]
+        finally:
+            # Ensure IDLE is stopped cleanly
+            mailbox.idle.stop()

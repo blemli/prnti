@@ -14,6 +14,8 @@ sudo touch /etc/udev/rules.d/99-escpos.rules
 echo 'SUBSYSTEM=="usb", ATTRS{idVendor}=="04b8", ATTRS{idProduct}=="0202", MODE="0664", GROUP="dialout"' |sudo tee -a /etc/udev/rules.d/99-escpos.rules
 sudo usermod -aG dialout $USER
 sudo service udev restart
+sudo udevadm control --reload-rules
+sudo udevadm trigger
 
 sudo apt install python3-dev libcups2-dev -y
 python3 -m venv .venv

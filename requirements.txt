@@ -1,1 +1,2 @@
 escpos==2.0.0
+imap_tools==1.10.0
