@@ -11,8 +11,13 @@ allowed_images = ['.jpg', '.gif', '.png', '.bmp']
 
 def print_image(filename):
     p = Usb(VENDOR_ID, PRODUCT_ID, 0, profile=PROFILE)
-    p.text("Hello World\n")
     assert filename.endswith(tuple(allowed_images)), "File type not supported"
     p.image(filename)
+    p.cut()
+    p.close()
+
+def print_text(text):
+    p = Usb(VENDOR_ID, PRODUCT_ID, 0, profile=PROFILE)
+    p.text(text)
     p.cut()
     p.close()
