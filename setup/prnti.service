@@ -6,7 +6,7 @@ After=network-online.target
 Type=simple
 User=pi
 WorkingDirectory=/opt/%H
-ExecStart=/usr/bin/sudo /opt/%H/.venv/bin/python3 -u /opt/%H/%H.py
+ExecStart=/opt/%H/.venv/bin/python3 -u /opt/%H/%H.py
 Restart=on-failure
 RestartSec=1
 
