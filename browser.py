@@ -54,6 +54,8 @@ def full_page_screenshot(url: str,
 
         page.screenshot(path=str(path), full_page=True)
         browser.close()
+        print("Screenshot taken.") 
+        print("Resizing image...")
         resized_img = resize_image(path, width=384)
         resized_img.save(path)
     return str(path)
