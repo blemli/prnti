@@ -31,6 +31,7 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 
 sudo apt install python3-dev libcups2-dev -y
+sudo apt install -y libgtk-4-1 libgraphene-1.0-0
 #sudo apt install chromium chromium-driver -y  # auf Bookworm/Bullseye
 
 
