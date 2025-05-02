@@ -31,11 +31,12 @@ def full_page_screenshot(url: str,
     path = Path(path).expanduser().resolve()
 
     with sync_playwright() as p:
+        print("Launching browser...")
         device = p.devices[device_name]          # iPhone, Pixel, Galaxy, …
         browser = p.chromium.launch(headless=True)
         context = browser.new_context(**device)
         page = context.new_page()
-
+        print(f"Taking screenshot of {url} on {device_name}...")
         page.goto(url, wait_until="networkidle")
 
         # Scroll through the page once to trigger lazy-loaded elements
@@ -49,6 +50,7 @@ def full_page_screenshot(url: str,
                 window.scrollTo(0, 0);          // back to top for clean shot
             })();
         """)
+        print("Taking screenshot...")
 
         page.screenshot(path=str(path), full_page=True)
         browser.close()

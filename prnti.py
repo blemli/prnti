@@ -4,6 +4,7 @@ from epsontm import print_image
 from mailbox import wait_for_mail, extract_article_url
 from browser import full_page_screenshot
 from icecream import ic
+import os
 from dotenv import load_dotenv
 
 
