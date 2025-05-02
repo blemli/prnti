@@ -9,4 +9,5 @@ sudo systemctl enable $name.service
 sudo service $name start
 
 echo "~~~ install pip requirements ~~~~"
-pip install -r requirements.txt
+source .venv/bin/activate
+python3 -m pip install -r requirements.txt
