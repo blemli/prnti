@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from epsontm import print_image
+from tsp800 import print_image
 from mailbox import wait_for_mail, extract_article_url
 from browser import full_page_screenshot
 from icecream import ic
@@ -30,7 +30,7 @@ if __name__=="__main__":
             screenshot_file=full_page_screenshot(article_url)
             if screenshot_file:
                 print(f"Screenshot saved to {screenshot_file} and printed successfully")
-                print_image(screenshot_file)
+                print_image(screenshot_file,cut=False)
                 os.remove(screenshot_file)
             else:
                 print("Failed to take or print screenshot")
