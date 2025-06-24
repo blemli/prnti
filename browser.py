@@ -8,7 +8,7 @@ import sys
 from argparse import ArgumentParser
 from PIL import Image
 
-def resize_image(path: str, width: int = 384) -> Image.Image:
+def resize_image(path: str, width: int = 830) -> Image.Image:
     """
     Resize the image at the given path to the specified width while maintaining the aspect ratio.
     """
@@ -56,8 +56,9 @@ def full_page_screenshot(url: str,
         browser.close()
         print("Screenshot taken.") 
         print("Resizing image...")
-        resized_img = resize_image(path, width=384)
-        resized_img.save(path)
+        resized_img = resize_image(path, width=830)
+        rotated_img = resized_img.rotate(180)
+        rotated_img.save(path)
     return str(path)
 
 
