@@ -4,11 +4,21 @@
 
 <img src="prnti.svg" alt="prnti" style="zoom:25%;" />
 
-a systemd service that listens for new mails from [wnti.ch](wnti.ch) using [imap-tools](https://pypi.org/project/imap-tools/). Once it gets a new mail, it extracts the link to the online version of the newsletter, captures a screenshot using [playwright](https://pypi.org/project/playwright/), resizes the image to a width of 384px with [Pillow](https://pypi.org/project/pillow/). Then it prints it to a Epson TM-T88IV Thermo Printer using [python-escpos](https://pypi.org/project/python-escpos/).
+a systemd service that listens for new mails from [wnti.ch](wnti.ch) using [imap-tools](https://pypi.org/project/imap-tools/). Once it gets a new mail, it extracts the link to the online version of the newsletter, captures a screenshot using [playwright](https://pypi.org/project/playwright/), resizes the image to a width of 830px and rotates it 180° with [Pillow](https://pypi.org/project/pillow/). Afterwards it prints it to a Epson TM-T88IV Thermo Printer using [python-escpos](https://pypi.org/project/python-escpos/).
 
 
 
-Install the printer (or use [setup.sh](./setup/setup.sh))
+## Install the printer
+
+1. `lsusb` to find the printer and vendor id
+
+```bash
+Bus 001 Device 003: ID 04b8:0202 Seiko Epson Corp. Interface Card UB-U05 for Thermal Receipt Printers [M129C/TM-T70/TM-T88IV]
+```
+
+In this case the vendor would be  *0x04b8* and the product id *0x0202*
+
+2. (or use [setup.sh](./setup/setup.sh))
 
 ```bash
 lsusb | grep Epson # shows the ids
@@ -25,7 +35,11 @@ python3 -m ensurepip
 python3 -m pip install python-escpos[all]
 ```
 
+### TSP800
 
+1. Enable ESC/POS Mode ([Documentation](https://starmicronics.com/help-center/knowledge-base/how-to-switch-emulations-on-star-desktop-printers/))
+
+![dsw-768x347](assets/dsw-768x347.webp)
 
 ## learned
 
@@ -4044,3 +4058,8 @@ L 15.26 158.92
   Z"
 />
 </svg>
+
+
+
+
+22cm with a resolution of 203dpi is ~1760px

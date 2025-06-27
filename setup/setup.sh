@@ -1,5 +1,5 @@
-NAME="offnomat"
-DESCRIPTION="is it open or not?"
+NAME="prnti"
+DESCRIPTION="prnti for wnti"
 
 echo "~~~ make installation stuff executable ~~~"
 sudo chmod +x setup/*.sh
