@@ -3,6 +3,9 @@
 from imap_tools import MailBox, AND, OR, NOT
 import re
 import time
+import threading
+import queue
+from typing import Optional
 
 def wait_for_mail(sender: str, host: str, username: str, password: str, folder: str = 'INBOX', timeout: int = 300):
     """
@@ -174,11 +177,174 @@ def wait_for_mail(sender: str, host: str, username: str, password: str, folder: 
                 print(f"Error stopping IDLE mode: {e}")
 
 
+class MailMonitor:
+    """
+    Threaded mail monitor with automatic restart capability to prevent hanging.
+    """
+    
+    def __init__(self, sender: str, host: str, username: str, password: str, 
+                 folder: str = 'INBOX', mail_timeout: int = 300, watchdog_timeout: int = 120):
+        self.sender = sender
+        self.host = host
+        self.username = username
+        self.password = password
+        self.folder = folder
+        self.mail_timeout = mail_timeout
+        self.watchdog_timeout = watchdog_timeout
+        
+        self.mail_queue = queue.Queue()
+        self.mail_thread = None
+        self.watchdog_thread = None
+        self.stop_event = threading.Event()
+        self.last_activity = time.time()
+        self.restart_count = 0
+        
+    def _mail_worker(self):
+        """Worker thread that monitors for new mail."""
+        thread_id = threading.current_thread().ident
+        print(f"Mail worker thread {thread_id} started")
+        
+        try:
+            while not self.stop_event.is_set():
+                try:
+                    # Update activity timestamp
+                    self.last_activity = time.time()
+                    
+                    # Wait for mail with the configured timeout
+                    msg = wait_for_mail(self.sender, self.host, self.username, 
+                                      self.password, self.folder, self.mail_timeout)
+                    
+                    # Update activity timestamp after operation
+                    self.last_activity = time.time()
+                    
+                    if msg is not None:
+                        # Put the message in the queue for the main thread
+                        self.mail_queue.put(msg)
+                        print(f"Mail worker thread {thread_id} found message: {msg.subject}")
+                    else:
+                        # Timeout reached, continue loop
+                        print(f"Mail worker thread {thread_id} timeout reached, continuing...")
+                        
+                except Exception as e:
+                    print(f"Error in mail worker thread {thread_id}: {e}")
+                    # Update activity to prevent watchdog from restarting due to exceptions
+                    self.last_activity = time.time()
+                    # Wait a bit before retrying
+                    time.sleep(10)
+                    
+        except Exception as e:
+            print(f"Fatal error in mail worker thread {thread_id}: {e}")
+        finally:
+            print(f"Mail worker thread {thread_id} exiting")
+    
+    def _watchdog_worker(self):
+        """Watchdog thread that monitors the mail thread and restarts it if it hangs."""
+        print("Watchdog thread started")
+        
+        while not self.stop_event.is_set():
+            try:
+                # Check if mail thread is still alive and active
+                current_time = time.time()
+                time_since_activity = current_time - self.last_activity
+                
+                if (self.mail_thread is None or 
+                    not self.mail_thread.is_alive() or 
+                    time_since_activity > self.watchdog_timeout):
+                    
+                    if time_since_activity > self.watchdog_timeout:
+                        print(f"Mail thread appears to be hanging (no activity for {time_since_activity:.1f}s)")
+                    elif self.mail_thread is None:
+                        print("Mail thread is None, starting new thread")
+                    else:
+                        print("Mail thread has died, restarting")
+                    
+                    self._restart_mail_thread()
+                
+                # Sleep for a short interval before checking again
+                self.stop_event.wait(10)  # Check every 10 seconds
+                
+            except Exception as e:
+                print(f"Error in watchdog thread: {e}")
+                time.sleep(10)
+        
+        print("Watchdog thread exiting")
+    
+    def _restart_mail_thread(self):
+        """Restart the mail monitoring thread."""
+        self.restart_count += 1
+        print(f"Restarting mail thread (restart #{self.restart_count})")
+        
+        # Stop the old thread if it exists
+        if self.mail_thread is not None and self.mail_thread.is_alive():
+            print("Attempting to stop existing mail thread...")
+            # Note: We can't forcefully kill threads in Python, but the thread should
+            # exit naturally when it hits the next timeout or exception
+        
+        # Start a new mail thread
+        self.mail_thread = threading.Thread(target=self._mail_worker, daemon=True)
+        self.mail_thread.start()
+        self.last_activity = time.time()
+        print(f"New mail thread started with ID: {self.mail_thread.ident}")
+    
+    def start(self):
+        """Start the mail monitoring system."""
+        print("Starting MailMonitor...")
+        self.stop_event.clear()
+        self.last_activity = time.time()
+        
+        # Start the mail worker thread
+        self.mail_thread = threading.Thread(target=self._mail_worker, daemon=True)
+        self.mail_thread.start()
+        
+        # Start the watchdog thread
+        self.watchdog_thread = threading.Thread(target=self._watchdog_worker, daemon=True)
+        self.watchdog_thread.start()
+        
+        print("MailMonitor started successfully")
+    
+    def stop(self):
+        """Stop the mail monitoring system."""
+        print("Stopping MailMonitor...")
+        self.stop_event.set()
+        
+        # Wait for threads to finish (with timeout)
+        if self.watchdog_thread and self.watchdog_thread.is_alive():
+            self.watchdog_thread.join(timeout=5)
+        
+        if self.mail_thread and self.mail_thread.is_alive():
+            self.mail_thread.join(timeout=5)
+        
+        print("MailMonitor stopped")
+    
+    def get_message(self, timeout: Optional[float] = None) -> Optional[object]:
+        """
+        Get a message from the mail queue.
+        
+        Args:
+            timeout: Maximum time to wait for a message (None = block indefinitely)
+            
+        Returns:
+            MailMessage object or None if timeout reached
+        """
+        try:
+            return self.mail_queue.get(timeout=timeout)
+        except queue.Empty:
+            return None
+    
+    def get_restart_count(self) -> int:
+        """Get the number of times the mail thread has been restarted."""
+        return self.restart_count
+
+
 def extract_article_url(msg):
     """
     Extract the first Mailchimp article URL from the given MailMessage.
     Returns the URL string or None if not found.
     """
+    if msg is None:
+        print("Cannot extract URL from None message")
+        return None
+        
     content = msg.text or msg.html or ''
     # Updated pattern to match the full URL including hyphens, query parameters, etc.
     # Exclude closing parenthesis from the URL
