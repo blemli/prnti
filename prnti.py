@@ -21,6 +21,8 @@ if __name__=="__main__":
         # Wait for an email and extract the article URL
         print("Waiting for email...")
         msg=wait_for_mail(sender,host,username,password)
+        if msg is None:
+            continue
         # Extract the article URL
         article_url=extract_article_url(msg)
         print("Article URL:", article_url)
@@ -31,6 +33,7 @@ if __name__=="__main__":
             if screenshot_file:
                 print(f"Screenshot saved to {screenshot_file} and printed successfully")
                 print_image(screenshot_file,cut=False)
+                print_image("whitespace.jpg",cut=False)
                 os.remove(screenshot_file)
             else:
                 print("Failed to take or print screenshot")

@@ -24,5 +24,4 @@ def print_text(text,cut=True):
 
 
 if __name__=="__main__":
-    print_text("hello world",cut=False)
-    print_image("test_image.jpg",cut=True)
+    print_image("whitespace.jpg",cut=False)
