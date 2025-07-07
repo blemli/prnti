@@ -39,7 +39,7 @@ python3 -m pip install python-escpos[all]
 
 1. Enable ESC/POS Mode ([Documentation](https://starmicronics.com/help-center/knowledge-base/how-to-switch-emulations-on-star-desktop-printers/))
 
-![dsw-768x347](assets/dsw-768x347.webp)
+![dsw-768x347](assets/dip-switches.webp)
 
 ## learned
 
