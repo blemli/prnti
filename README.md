@@ -4060,6 +4060,11 @@ L 15.26 158.92
 </svg>
 
 
-
-
 22cm with a resolution of 203dpi is ~1760px
+
+
+## Todo
+- [ ] don't crash on network error
+- [ ] send monitoring mail
+- [ ] log url to newsletters.csv
+- [ ] allow mails from all senders of a domain...
