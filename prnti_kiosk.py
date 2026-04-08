@@ -25,7 +25,7 @@ NEWSLETTERS_DIR = "newsletters"
 
 # Press duration thresholds (seconds)
 SHORT_MIN = 0.1
-SHORT_MAX = 0.5
+SHORT_MAX = 0.8
 MIDDLE_MIN = 1.0
 MIDDLE_MAX = 2.0
 LONG_MIN = 4.0
