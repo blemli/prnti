@@ -4,9 +4,14 @@
 Kiosk mode for prnti: prints newsletters on button press.
 
 Button on GPIO 27 (active-low, internal pull-up):
-  - Short press  (0.1–0.3s): print the most recent newsletter
-  - Middle press (1–2s):     reserved for future use
+  - Short press  (0.1–0.8s): print the most recent newsletter
+  - Middle press (1–2s):     enter morse input mode to select newsletter by nr
   - Long press   (>4s):      print all newsletters oldest-first (abort with short press)
+
+Morse input mode (enter with middle press):
+  For each digit: tap short presses to count the digit value, then middle press to confirm.
+  After 3 digits confirmed, the newsletter with that nr is printed.
+  Example for #103: middle(enter), short×1, middle(=1), middle(=0), short×3, middle(=3) → prints #103
 """
 
 import csv
@@ -18,7 +23,7 @@ import time
 
 import RPi.GPIO as GPIO
 
-from tsp800 import print_image
+from tsp800 import print_image, reset_printer
 
 BUTTON_PIN = 27
 CSV_PATH = "newsletters.csv"
@@ -98,6 +103,44 @@ class AbortMonitor:
             time.sleep(0.01)
 
 
+def handle_middle_press():
+    """Enter morse input mode to select a newsletter by nr."""
+    print("Morse input mode — tap short for digit value, middle to confirm digit")
+    digits = []
+
+    while len(digits) < 3:
+        count = 0
+        # Count short taps, middle press confirms the digit
+        while True:
+            duration = wait_for_press()
+            if SHORT_MIN <= duration <= SHORT_MAX:
+                count += 1
+                print(f"  tap {count}")
+            elif MIDDLE_MIN <= duration <= MIDDLE_MAX:
+                if count > 9:
+                    print(f"  digit too large ({count}), capping to 9")
+                    count = 9
+                digits.append(count)
+                print(f"  confirmed digit: {count}  (so far: {''.join(str(d) for d in digits)})")
+                break
+            elif duration >= LONG_MIN:
+                print("  long press — aborting morse input")
+                return
+            else:
+                print(f"  ignored press ({duration:.2f}s)")
+
+    nr = digits[0] * 100 + digits[1] * 10 + digits[2]
+    print(f"Morse input complete: #{nr}")
+
+    newsletters = load_newsletters()
+    match = next((nl for nl in newsletters if int(nl['nr']) == nr), None)
+    if match:
+        print(f"Found newsletter #{nr}: {match['date']}")
+        print_newsletter(match)
+    else:
+        print(f"Newsletter #{nr} not found")
+
+
 def handle_short_press():
     """Print the most recent newsletter (last row in CSV)."""
     newsletters = load_newsletters()
@@ -125,7 +168,8 @@ def handle_long_press():
     try:
         for i, nl in enumerate(newsletters, 1):
             if abort.aborted:
-                print(f"Aborted at {i}/{total}")
+                print(f"Aborted at {i}/{total} — resetting printer")
+                reset_printer()
                 return
             print(f"[{i}/{total}] #{nl['nr']} ({nl['date']})")
             print_newsletter(nl)
@@ -158,7 +202,7 @@ def main():
             if SHORT_MIN <= duration <= SHORT_MAX:
                 handle_short_press()
             elif MIDDLE_MIN <= duration <= MIDDLE_MAX:
-                print("Middle press detected (not yet implemented)")
+                handle_middle_press()
             elif duration >= LONG_MIN:
                 handle_long_press()
             else:

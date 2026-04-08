@@ -16,6 +16,13 @@ def print_image(filename,cut=True):
     if cut: p.cut()
     p.close()
 
+def reset_printer():
+    """Send ESC @ (initialize) to clear the printer buffer."""
+    p = Usb(VENDOR_ID, PRODUCT_ID, 0, profile=PROFILE)
+    p._raw(b'\x1b\x40')  # ESC @ — initialize/reset printer
+    p.close()
+
+
 def print_text(text,cut=True):
     p = Usb(VENDOR_ID, PRODUCT_ID, 0, profile=PROFILE)
     p.text(text)
