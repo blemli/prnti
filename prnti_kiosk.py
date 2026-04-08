@@ -51,8 +51,9 @@ def print_newsletter(url):
 def wait_for_press():
     """Wait for button press and return the duration in seconds."""
     # Wait for button press (falling edge, active-low)
-    while GPIO.wait_for_edge(BUTTON_PIN, GPIO.FALLING, timeout=1000) is None:
-        pass  # retry until actual edge detected
+    # Poll for button press (wait_for_edge broken on this kernel)
+    while GPIO.input(BUTTON_PIN) == GPIO.HIGH:
+        time.sleep(0.01)
     press_start = time.monotonic()
 
     # Wait for release
