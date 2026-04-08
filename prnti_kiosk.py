@@ -17,11 +17,11 @@ import time
 
 import RPi.GPIO as GPIO
 
-from browser import full_page_screenshot
 from tsp800 import print_image
 
 BUTTON_PIN = 27
 CSV_PATH = "newsletters.csv"
+NEWSLETTERS_DIR = "newsletters"
 
 # Press duration thresholds (seconds)
 SHORT_MIN = 0.1
@@ -36,16 +36,15 @@ def load_newsletters():
         return list(csv.DictReader(f))
 
 
-def print_newsletter(url):
-    """Take a screenshot of the URL and print it."""
-    print(f"Printing: {url}")
-    screenshot = full_page_screenshot(url)
-    if screenshot:
-        print_image(screenshot, cut=False)
-        print_image("whitespace.jpg", cut=False)
-        os.remove(screenshot)
-    else:
-        print("Failed to take screenshot")
+def print_newsletter(newsletter):
+    """Print a newsletter from its pre-downloaded image."""
+    path = os.path.join(NEWSLETTERS_DIR, f"{newsletter['id']}.jpg")
+    if not os.path.isfile(path):
+        print(f"Image not found: {path}")
+        return
+    print(f"Printing: #{newsletter['nr']} ({newsletter['date']}) — {path}")
+    print_image(path, cut=False)
+    print_image("whitespace.jpg", cut=False)
 
 
 def wait_for_press():
@@ -83,7 +82,7 @@ def handle_short_press():
         return
     latest = newsletters[-1]
     print(f"Printing latest newsletter: #{latest['nr']} ({latest['date']})")
-    print_newsletter(latest['url'])
+    print_newsletter(latest)
 
 
 def handle_long_press():
@@ -101,7 +100,7 @@ def handle_long_press():
             print(f"Aborted at {i}/{total}")
             return
         print(f"[{i}/{total}] #{nl['nr']} ({nl['date']})")
-        print_newsletter(nl['url'])
+        print_newsletter(nl)
 
     print("All newsletters printed")
 
