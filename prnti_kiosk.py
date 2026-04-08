@@ -13,6 +13,7 @@ import csv
 import os
 import signal
 import sys
+import threading
 import time
 
 import RPi.GPIO as GPIO
@@ -62,16 +63,39 @@ def wait_for_press():
     return time.monotonic() - press_start
 
 
-def check_short_press():
-    """Non-blocking check for a short button press (used to abort print-all)."""
-    if GPIO.input(BUTTON_PIN) == GPIO.LOW:
-        press_start = time.monotonic()
-        while GPIO.input(BUTTON_PIN) == GPIO.LOW:
+class AbortMonitor:
+    """Monitors button in a background thread to detect abort presses during printing."""
+
+    def __init__(self):
+        self._abort = threading.Event()
+        self._thread = None
+
+    def start(self):
+        self._abort.clear()
+        self._thread = threading.Thread(target=self._watch, daemon=True)
+        self._thread.start()
+
+    def stop(self):
+        self._abort.set()
+        if self._thread:
+            self._thread.join(timeout=2)
+
+    @property
+    def aborted(self):
+        return self._abort.is_set()
+
+    def _watch(self):
+        while not self._abort.is_set():
+            if GPIO.input(BUTTON_PIN) == GPIO.LOW:
+                press_start = time.monotonic()
+                while GPIO.input(BUTTON_PIN) == GPIO.LOW:
+                    time.sleep(0.01)
+                duration = time.monotonic() - press_start
+                if SHORT_MIN <= duration <= SHORT_MAX:
+                    print("Abort press detected!")
+                    self._abort.set()
+                    return
             time.sleep(0.01)
-        duration = time.monotonic() - press_start
-        if SHORT_MIN <= duration <= SHORT_MAX:
-            return True
-    return False
 
 
 def handle_short_press():
@@ -93,14 +117,20 @@ def handle_long_press():
         return
 
     total = len(newsletters)
-    print(f"Printing all {total} newsletters...")
+    print(f"Printing all {total} newsletters... (short press to abort)")
 
-    for i, nl in enumerate(newsletters, 1):
-        if check_short_press():
-            print(f"Aborted at {i}/{total}")
-            return
-        print(f"[{i}/{total}] #{nl['nr']} ({nl['date']})")
-        print_newsletter(nl)
+    abort = AbortMonitor()
+    abort.start()
+
+    try:
+        for i, nl in enumerate(newsletters, 1):
+            if abort.aborted:
+                print(f"Aborted at {i}/{total}")
+                return
+            print(f"[{i}/{total}] #{nl['nr']} ({nl['date']})")
+            print_newsletter(nl)
+    finally:
+        abort.stop()
 
     print("All newsletters printed")
 
