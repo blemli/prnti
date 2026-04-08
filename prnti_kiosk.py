@@ -104,7 +104,7 @@ class AbortMonitor:
 
 
 def handle_middle_press():
-    """Enter morse input mode to select a newsletter by nr."""
+    """Enter morse input mode to select a newsletter by id."""
     print("Morse input mode — tap short for digit value, middle to confirm digit")
     digits = []
 
@@ -129,16 +129,16 @@ def handle_middle_press():
             else:
                 print(f"  ignored press ({duration:.2f}s)")
 
-    nr = digits[0] * 100 + digits[1] * 10 + digits[2]
-    print(f"Morse input complete: #{nr}")
+    entered_id = str(digits[0] * 100 + digits[1] * 10 + digits[2]).zfill(3)
+    print(f"Morse input complete: id {entered_id}")
 
     newsletters = load_newsletters()
-    match = next((nl for nl in newsletters if int(nl['nr']) == nr), None)
+    match = next((nl for nl in newsletters if nl['id'] == entered_id), None)
     if match:
-        print(f"Found newsletter #{nr}: {match['date']}")
+        print(f"Found newsletter id={entered_id}: #{match['nr']} ({match['date']})")
         print_newsletter(match)
     else:
-        print(f"Newsletter #{nr} not found")
+        print(f"Newsletter id={entered_id} not found")
 
 
 def handle_short_press():
