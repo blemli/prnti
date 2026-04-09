@@ -23,7 +23,7 @@ import time
 
 import RPi.GPIO as GPIO
 
-from tsp800 import print_image, reset_printer
+from tsp800 import print_image, reset_printer, Printer
 
 BUTTON_PIN = 27
 CSV_PATH = "newsletters.csv"
@@ -165,13 +165,18 @@ def handle_long_press():
     abort.start()
 
     try:
-        for i, nl in enumerate(newsletters, 1):
-            if abort.aborted:
-                print(f"Aborted at {i}/{total} — resetting printer")
-                reset_printer()
-                return
-            print(f"[{i}/{total}] #{nl['nr']} ({nl['date']})")
-            print_newsletter(nl)
+        with Printer() as p:
+            for i, nl in enumerate(newsletters, 1):
+                if abort.aborted:
+                    print(f"Aborted at {i}/{total} — resetting printer")
+                    p.reset()
+                    return
+                path = os.path.join(NEWSLETTERS_DIR, f"{nl['id']}.jpg")
+                if not os.path.isfile(path):
+                    print(f"Image not found: {path}")
+                    continue
+                print(f"[{i}/{total}] #{nl['nr']} ({nl['date']}) — {path}")
+                p.image(path, cut=False)
     finally:
         abort.stop()
 
