@@ -49,8 +49,7 @@ def print_newsletter(newsletter, cut=False):
         print(f"Image not found: {path}")
         return
     print(f"Printing: #{newsletter['nr']} ({newsletter['date']}) — {path}")
-    print_image(path, cut=False)
-    print_image("whitespace.jpg", cut=cut)
+    print_image(path, cut=cut)
 
 
 def wait_for_press():
