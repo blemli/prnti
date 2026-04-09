@@ -42,7 +42,7 @@ def load_newsletters():
         return list(csv.DictReader(f))
 
 
-def print_newsletter(newsletter):
+def print_newsletter(newsletter, cut=False):
     """Print a newsletter from its pre-downloaded image."""
     path = os.path.join(NEWSLETTERS_DIR, f"{newsletter['id']}.jpg")
     if not os.path.isfile(path):
@@ -50,7 +50,7 @@ def print_newsletter(newsletter):
         return
     print(f"Printing: #{newsletter['nr']} ({newsletter['date']}) — {path}")
     print_image(path, cut=False)
-    print_image("whitespace.jpg", cut=False)
+    print_image("whitespace.jpg", cut=cut)
 
 
 def wait_for_press():
@@ -136,7 +136,7 @@ def handle_middle_press():
     match = next((nl for nl in newsletters if nl['id'] == entered_id), None)
     if match:
         print(f"Found newsletter id={entered_id}: #{match['nr']} ({match['date']})")
-        print_newsletter(match)
+        print_newsletter(match, cut=True)
     else:
         print(f"Newsletter id={entered_id} not found")
 
@@ -149,7 +149,7 @@ def handle_short_press():
         return
     latest = newsletters[-1]
     print(f"Printing latest newsletter: #{latest['nr']} ({latest['date']})")
-    print_newsletter(latest)
+    print_newsletter(latest, cut=True)
 
 
 def handle_long_press():
