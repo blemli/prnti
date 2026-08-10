@@ -30,6 +30,7 @@ STOPNAMES = {
     "bleib", "tickets", "hause", "velos", "halle", "tempo", "zentrum",
     "partei", "kommission", "ok", "ki", "franken", "linkedin",
     "dorfet", "dörfet", "sohn", "gestern", "unterstütze", "bewohner",
+    "person", "komm", "guten",
     # Winterthur aliases and newsletter greetings
     "winti", "morge winti", "guete morge winti",
 }
@@ -42,6 +43,9 @@ ALIASES = {
     "der schweiz": "Schweiz",
     "fcw": "FC Winterthur",
     "grünen": "Grüne",
+    "mattia mayer": "Mattea Meyer",
+    "mfw": "Musikfestwochen",
+    "oskar reinhart": "Stiftung Oskar Reinhart",
 }
 
 # Real entities spaCy tends to put in the wrong bucket: name → correct label
@@ -52,7 +56,13 @@ RELABEL = {
     "bund": "ORG",             # der Bund = federal government, not a place
     "fc winterthur": "ORG",
     "grüne": "ORG",
+    "stadtgrün": "ORG",        # Stadtgrün Winterthur
+    "pfadi winterthur": "ORG",
+    "stiftung oskar reinhart": "ORG",
+    "geschichtennetzwerk winterthur": "ORG",
+    "musikfestwochen": "ORG",
     "hegi": "LOC",             # Stadtteil, not a person
+    "kva": "LOC",              # Kehrichtverbrennungsanlage
     "stadt winterthur": "LOC",
     "schweiz": "LOC",
 }
@@ -83,6 +93,8 @@ def clean_name(name):
     name = re.sub(r"\s+", " ", name).strip()
     # Strip surrounding punctuation, emoji and other symbols
     name = re.sub(r"^[\W_]+|[\W_]+$", "", name)
+    # Drop trailing "Guten" glued on from "Guten Morgen ..." greetings
+    name = re.sub(r"\s+Guten$", "", name)
     return name
 
 

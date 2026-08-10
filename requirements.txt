@@ -4,5 +4,5 @@ imap_tools==1.10.0
 Pillow==11.3.0
 playwright==1.52.0
 python-dotenv==1.1.1
-RPi.GPIO==0.7.1
+RPi.GPIO==0.7.1; sys_platform == "linux"
 tqdm==4.67.1
