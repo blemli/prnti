@@ -29,6 +29,7 @@ def full_page_screenshot(url: str,
     Returns the absolute path of the screenshot.
     """
     path = Path(path).expanduser().resolve()
+    tmp = path.with_name(path.name + ".tmp.png")  # final path only appears once the image is complete
 
     with sync_playwright() as p:
         print("Launching browser...")
@@ -52,13 +53,14 @@ def full_page_screenshot(url: str,
         """)
         print("Taking screenshot...")
 
-        page.screenshot(path=str(path), full_page=True)
+        page.screenshot(path=str(tmp), full_page=True)
         browser.close()
-        print("Screenshot taken.") 
+        print("Screenshot taken.")
         print("Resizing image...")
-        resized_img = resize_image(path, width=830)
-        rotated_img = resized_img.rotate(180)
+        resized_img = resize_image(tmp, width=830)
+        rotated_img = resized_img.rotate(180).convert("RGB")
         rotated_img.save(path)
+        tmp.unlink()
     return str(path)
 
 

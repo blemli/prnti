@@ -41,6 +41,19 @@ python3 -m pip install python-escpos[all]
 
 ![dsw-768x347](assets/dip-switches.webp)
 
+## admin (newsletters.csv)
+
+`prnti_admin.py` is a tiny flask app that only allows downloading and uploading `newsletters.csv`. Uploads are validated (utf-8, header `id,type,nr,date,url`, 5 columns per row) and written atomically, so the kiosk never reads a half-written file. Runs on port 8080. Set `PRNTI_ADMIN_PASS` in `.env` to require a password for uploads (basic auth, browser prompts for it; `curl -u :pass`); unset means no auth, LAN only.
+
+```bash
+setup/install-prnti_admin.sh                    # installs + enables prnti_admin.service
+open http://prnti.local:8080                    # download link + upload form
+curl -O http://prnti.local:8080/newsletters.csv                     # download
+curl -F file=@newsletters.csv http://prnti.local:8080/newsletters.csv   # upload
+```
+
+After uploading new rows, press the **get_all** button (or `curl -X POST http://prnti.local:8080/get_all`). It runs `get_all.py` in the background, shows progress (screenshots present / rows with a url), stays disabled while running and restarts the script up to 5 times if it fails. `get_all.py` skips existing files and skips (but reports) newsletters whose url cannot be fetched, so a restart only retries what is missing. Status as json: `/get_all/status`.
+
 ## learned
 
 ###  setup wifi:

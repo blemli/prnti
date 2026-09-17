@@ -6,3 +6,5 @@ playwright==1.52.0
 python-dotenv==1.2.2
 RPi.GPIO==0.7.1; sys_platform == "linux"
 tqdm==4.67.1
+Flask==3.1.0
+waitress==3.0.2
