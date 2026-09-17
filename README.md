@@ -43,7 +43,7 @@ python3 -m pip install python-escpos[all]
 
 ## admin (newsletters.csv)
 
-`prnti_admin.py` is a tiny flask app that only allows downloading and uploading `newsletters.csv`. Uploads are validated (utf-8, header `id,type,nr,date,url`, 5 columns per row) and written atomically, so the kiosk never reads a half-written file. Runs on port 8080. Set `PRNTI_ADMIN_PASS` in `.env` to require a password for uploads (basic auth, browser prompts for it; `curl -u :pass`); unset means no auth, LAN only.
+`prnti_admin.py` is a tiny flask app that only allows downloading and uploading `newsletters.csv` and running `get_all`. Uploads are validated (utf-8, header `id,type,nr,date,url`, 3-digit unique id, numeric nr, `YYYY-MM-DD` date, url empty or on `https://mailchi.mp/`); a malformed file is rejected with every problem listed by line number and nothing is changed. Writes are atomic, so the kiosk never reads a half-written file. If the file on disk is ever broken (e.g. edited by hand), the page says so in red and get_all is blocked until a fixed one is uploaded. Runs on port 8080. Set `PRNTI_ADMIN_PASS` in `.env` to require a password for uploads (basic auth, browser prompts for it; `curl -u :pass`); unset means no auth, LAN only.
 
 ```bash
 setup/install-prnti_admin.sh                    # installs + enables prnti_admin.service
@@ -52,7 +52,7 @@ curl -O http://prnti.local:8080/newsletters.csv                     # download
 curl -F file=@newsletters.csv http://prnti.local:8080/newsletters.csv   # upload
 ```
 
-After uploading new rows, press the **get_all** button (or `curl -X POST http://prnti.local:8080/get_all`). It runs `get_all.py` in the background, shows progress (screenshots present / rows with a url), stays disabled while running and restarts the script up to 5 times if it fails. `get_all.py` skips existing files and skips (but reports) newsletters whose url cannot be fetched, so a restart only retries what is missing. Status as json: `/get_all/status`.
+After uploading new rows, press the **get_all** button (or `curl -X POST http://prnti.local:8080/get_all`). It runs `get_all.py` in the background, shows progress (screenshots present / rows with a url), stays disabled while running and restarts the script up to 5 times if it fails. `get_all.py` skips existing files (an empty or unreadable jpg counts as missing) and skips (but reports) newsletters whose url cannot be fetched, so a restart only retries what is missing. Screenshots are written atomically and a run interrupted by a power cut or service restart resumes by itself when the admin service comes back up. Status as json: `/get_all/status`.
 
 ## learned
 

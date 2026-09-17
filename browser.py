@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
@@ -29,7 +30,8 @@ def full_page_screenshot(url: str,
     Returns the absolute path of the screenshot.
     """
     path = Path(path).expanduser().resolve()
-    tmp = path.with_name(path.name + ".tmp.png")  # final path only appears once the image is complete
+    tmp = path.with_name(path.name + ".tmp.png")  # raw screenshot
+    tmp_jpg = path.with_name(path.name + ".tmp.jpg")  # finished image, renamed into place at the very end
 
     with sync_playwright() as p:
         print("Launching browser...")
@@ -59,7 +61,11 @@ def full_page_screenshot(url: str,
         print("Resizing image...")
         resized_img = resize_image(tmp, width=830)
         rotated_img = resized_img.rotate(180).convert("RGB")
-        rotated_img.save(path)
+        with open(tmp_jpg, "wb") as f:
+            rotated_img.save(f, format="JPEG")
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp_jpg, path)  # atomic: path is either absent or a complete jpg, even after a power cut
         tmp.unlink()
     return str(path)
 
