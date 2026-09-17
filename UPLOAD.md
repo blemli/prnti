@@ -1,5 +1,11 @@
 # Updating newsletters.csv on prnti
 
+
+
+![SCR-20260917-qgng](assets/SCR-20260917-qgng.png)
+
+
+
 ## 1. Open the admin page
 
 Make sure your computer is in the same network as prnti, then open:
@@ -46,9 +52,22 @@ id,type,nr,date,url
 >
 > Do not change or delete existing rows. Save as plain CSV (not `.xlsx`).
 
+> [!CAUTION]
+>
+> Don't forget a comma or it won't work
+
 > [!TIP]
 >
-> You can use an LLM to fetch the missing newsletters.
+> You can use an LLM to fetch the missing newsletters and update the csv.
+>
+> ```
+> Fetch all missing newsletter up until today from wnti.ch and update this newsletters.csv file
+> Don't forget parlamentsbriefe. Fix any errors in numbering and add missing information.
+> Make sure the csv is valid.
+> Be Thorough
+> ```
+>
+> 
 
 ## 4. Upload
 
@@ -58,4 +77,7 @@ If asked for a password, leave the username empty and enter the admin password.
 ## 5. Fetch screenshots
 
 Click **get_all (fetch missing screenshots)**. Progress is shown next to the button.
+
+It wil download and render all the Newsletters.
+
 Wait until it says done, then the new newsletters can be printed.
