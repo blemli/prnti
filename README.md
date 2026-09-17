@@ -52,7 +52,7 @@ curl -O http://prnti.local:8080/newsletters.csv                     # download
 curl -F file=@newsletters.csv http://prnti.local:8080/newsletters.csv   # upload
 ```
 
-After uploading new rows, press the **get_all** button (or `curl -X POST http://prnti.local:8080/get_all`). It runs `get_all.py` in the background, shows progress (screenshots present / rows with a url), stays disabled while running and restarts the script up to 5 times if it fails. `get_all.py` skips existing files (an empty or unreadable jpg counts as missing) and skips (but reports) newsletters whose url cannot be fetched, so a restart only retries what is missing. Screenshots are written atomically and a run interrupted by a power cut or service restart resumes by itself when the admin service comes back up. Status as json: `/get_all/status`.
+After uploading new rows, press the **get_all** button (or `curl -X POST http://prnti.local:8080/get_all`). It runs `get_all.py` in the background, shows progress (screenshots present / rows with a url), stays disabled while running and restarts the script up to 5 times if it fails. `get_all.py` skips existing files (an empty or unreadable jpg counts as missing) and skips (but reports) newsletters whose url cannot be fetched, so a restart only retries what is missing. Screenshots are written atomically and a run interrupted by a power cut or service restart resumes by itself when the admin service comes back up. **stop** halts the run at once (or `curl -X POST http://prnti.local:8080/get_all/stop`); finished screenshots stay, and a stopped run is not resumed after a restart. Status as json: `/get_all/status`.
 
 ## learned
 

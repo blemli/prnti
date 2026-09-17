@@ -8,6 +8,7 @@ Tiny admin backend for prnti: download and upload newsletters.csv, and run get_a
   POST /newsletters.csv  upload a replacement (multipart field "file" or raw body); rejected with the
                          reasons listed if it is malformed
   POST /get_all          run get_all.py in the background (restarted on failure, resumed after reboot)
+  POST /get_all/stop     halt the run (no restart, no resume)
   GET  /get_all/status   json: running, done, total, restarts, error, csv_error
 
 POSTs are protected by basic auth if PRNTI_ADMIN_PASS is set in .env.
@@ -59,14 +60,16 @@ pre { font: inherit; display: inline-block; text-align: left }
 <input type="file" name="file" accept=".csv,text/csv" required>
 <button type="submit">upload newsletters.csv</button>
 </form>
-<p><button id="get_all" disabled>get_all (fetch missing screenshots)</button> <span id="progress"></span></p>
+<p><button id="get_all" disabled>get_all (fetch missing screenshots)</button>
+<button id="stop" disabled>stop</button> <span id="progress"></span></p>
 <p id="csv_error" style="color:red"></p>
 <script>
-const btn = document.getElementById("get_all"), out = document.getElementById("progress"),
-      err = document.getElementById("csv_error");
+const btn = document.getElementById("get_all"), stop = document.getElementById("stop"),
+      out = document.getElementById("progress"), err = document.getElementById("csv_error");
 async function poll() {
   const s = await (await fetch("/get_all/status")).json();
   btn.disabled = s.running || !!s.csv_error;
+  stop.disabled = !s.running;
   err.textContent = s.csv_error ? "newsletters.csv on disk is broken, upload a fixed one: " + s.csv_error : "";
   out.textContent = `${s.done} / ${s.total}` + (s.running ? " running" : "")
     + (s.restarts ? ` (${s.restarts} restarts)` : "") + (s.error ? ` - ${s.error}` : "");
@@ -77,12 +80,15 @@ btn.onclick = async () => {
   if (!r.ok) alert(await r.text());
   poll();
 };
+stop.onclick = async () => { stop.disabled = true; await fetch("/get_all/stop", {method: "POST"}); poll(); };
 poll(); setInterval(poll, 2000);
 </script>
 """
 
 state = {"running": False, "restarts": 0, "error": ""}
 lock = threading.Lock()
+stop_requested = threading.Event()
+child = None  # the running get_all.py process, if any
 
 
 def page(message="", ok=True):
@@ -150,25 +156,52 @@ def progress():
 
 def run_get_all():
     """Run get_all.py to completion, restarting it if it fails (it only fetches what is missing)."""
+    global child
     for attempt in range(MAX_RESTARTS + 1):
-        proc = subprocess.run([sys.executable, "-u", GET_ALL], cwd=HERE, stderr=subprocess.PIPE, text=True)
-        if proc.returncode == 0:
+        with lock:
+            if stop_requested.is_set():
+                error = "stopped"
+                break
+            child = subprocess.Popen([sys.executable, "-u", GET_ALL], cwd=HERE, stderr=subprocess.PIPE, text=True)
+        _, stderr = child.communicate()
+        if stop_requested.is_set():
+            error = "stopped"
+            break
+        if child.returncode == 0:
             error = ""
             break
-        lines = [l for l in proc.stderr.splitlines() if l.strip()]
-        error = lines[-1] if lines else f"exit code {proc.returncode}"
+        lines = [l for l in stderr.splitlines() if l.strip()]
+        error = lines[-1] if lines else f"exit code {child.returncode}"
         print(f"get_all attempt {attempt + 1} failed: {error}", flush=True)
         if attempt == MAX_RESTARTS:
             break
         with lock:
             state["restarts"] = attempt + 1
             state["error"] = error
-        time.sleep(5)
+        stop_requested.wait(5)
     if os.path.exists(MARKER):
         os.remove(MARKER)
     with lock:
+        child = None
         state["running"] = False
         state["error"] = error
+
+
+def stop_get_all():
+    """Halt a running get_all: no restart, no resume after reboot. The finished screenshots stay."""
+    with lock:
+        if not state["running"]:
+            return
+        stop_requested.set()
+        if os.path.exists(MARKER):
+            os.remove(MARKER)
+        proc = child
+    if proc is not None:
+        proc.terminate()
+        try:
+            proc.wait(5)
+        except subprocess.TimeoutExpired:
+            proc.kill()
 
 
 def start_get_all() -> str | None:
@@ -179,6 +212,7 @@ def start_get_all() -> str | None:
         if state["running"]:
             return "already running"
         state.update(running=True, restarts=0, error="")
+        stop_requested.clear()
     open(MARKER, "w").close()
     threading.Thread(target=run_get_all, daemon=True).start()
     return None
@@ -206,6 +240,14 @@ def get_all():
     if error := start_get_all():
         return Response(error + "\n", status=409 if error == "already running" else 400)
     return Response("started\n", status=202)
+
+
+@app.post("/get_all/stop")
+def get_all_stop():
+    if denied := unauthorized():
+        return denied
+    stop_get_all()
+    return Response("stopped\n", status=200)
 
 
 @app.get("/get_all/status")
